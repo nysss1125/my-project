@@ -24,7 +24,7 @@ jobs:
       - name: Install pdfplumber
         run: pip install pdfplumber
 
-      - name: Convert PDF using script
+      - name: Run convert script
         run: python convert.py
 
       - name: Commit and Push
