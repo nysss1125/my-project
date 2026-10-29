@@ -2,11 +2,9 @@ import glob
 import os
 import pdfplumber
 
-# 搜尋根目錄與子目錄下所有 PDF 檔案
 pdf_files = glob.glob('*.pdf') + glob.glob('**/*.pdf', recursive=True)
 
 for pdf_file in pdf_files:
-    # 忽略隱藏資料夾裡的檔名
     if '.github' in pdf_file:
         continue
 
