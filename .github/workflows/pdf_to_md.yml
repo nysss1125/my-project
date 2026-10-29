@@ -1,0 +1,48 @@
+name: Convert PDF to Markdown
+
+on:
+  push:
+    paths:
+      - '**.pdf' # 當有 pdf 檔案上傳時觸發
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pdfplumber
+
+      - name: Convert PDF to MD
+        run: |
+          python -c "
+          import pdfplumber
+          import glob
+          import os
+
+          for pdf_file in glob.glob('*.pdf'):
+              md_filename = os.path.splitext(pdf_file)[0] + '.md'
+              with pdfplumber.open(pdf_file) as pdf:
+                  text = ''
+                  for page in pdf.pages:
+                      text += page.extract_text() + '\n\n---'\n
+              with open(md_filename, 'w', encoding='utf-8') as f:
+                  f.write(text)
+          "
+
+      - name: Commit and Push Markdown Files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add *.md
+          git commit -m "Auto-convert PDF to Markdown" || exit 0
+          git push
