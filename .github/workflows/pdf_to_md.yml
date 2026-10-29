@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '**.pdf'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,43 +21,32 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pdfplumber
+      - name: Install pdfplumber
+        run: pip install pdfplumber
 
       - name: Convert PDF to MD
         run: |
           python -c "
-          import pdfplumber
-          import glob
-          import os
-
+          import pdfplumber, glob, os
           pdf_files = glob.glob('*.pdf') + glob.glob('**/*.pdf', recursive=True)
-          for pdf_file in pdf_files:
-              md_filename = os.path.splitext(pdf_file)[0] + '.md'
+          for f in pdf_files:
               try:
-                  with pdfplumber.open(pdf_file) as pdf:
-                      text = ''
-                      for page in pdf.pages:
-                          extracted = page.extract_text()
-                          if extracted:
-                              text += extracted + '\n\n---\n\n'
-                  with open(md_filename, 'w', encoding='utf-8') as f:
-                      f.write(text)
-                  print(f'Successfully converted {pdf_file} to {md_filename}')
+                  with pdfplumber.open(f) as pdf:
+                      pages_text = []
+                      for p in pdf.pages:
+                          txt = p.extract_text()
+                          if txt:
+                              pages_text.append(txt)
+                      full_text = '\n\n---\n\n'.join(pages_text)
+                  out_name = os.path.splitext(f)[0] + '.md'
+                  with open(out_name, 'w', encoding='utf-8') as out:
+                      out.write(full_text)
+                  print(f'Successfully converted {f}')
               except Exception as e:
-                  print(f'Error processing {pdf_file}: {e}')
+                  print(f'Error converting {f}: {e}')
           "
 
-      - name: Commit and Push Markdown Files
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto-convert PDF to Markdown"
-            git push
-          fi
+      - name: Commit and Push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto convert PDF to Markdown"
