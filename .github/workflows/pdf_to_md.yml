@@ -24,27 +24,8 @@ jobs:
       - name: Install pdfplumber
         run: pip install pdfplumber
 
-      - name: Convert PDF to MD
-        run: |
-          python -c "
-          import pdfplumber, glob, os
-          pdf_files = glob.glob('*.pdf') + glob.glob('**/*.pdf', recursive=True)
-          for f in pdf_files:
-              try:
-                  with pdfplumber.open(f) as pdf:
-                      pages_text = []
-                      for p in pdf.pages:
-                          txt = p.extract_text()
-                          if txt:
-                              pages_text.append(txt)
-                      full_text = '\n\n---\n\n'.join(pages_text)
-                  out_name = os.path.splitext(f)[0] + '.md'
-                  with open(out_name, 'w', encoding='utf-8') as out:
-                      out.write(full_text)
-                  print(f'Successfully converted {f}')
-              except Exception as e:
-                  print(f'Error converting {f}: {e}')
-          "
+      - name: Convert PDF using script
+        run: python convert.py
 
       - name: Commit and Push
         uses: stefanzweifel/git-auto-commit-action@v5
