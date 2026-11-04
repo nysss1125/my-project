@@ -21,26 +21,49 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install pdfplumber
-        run: pip install pdfplumber
+      - name: Install dependencies
+        run: pip install pdfplumber pypdf
 
       - name: Create and run script
         run: |
           cat << 'EOF' > run_convert.py
           import glob, os, pdfplumber
+          from pypdf import PdfReader
 
           pdf_files = glob.glob('*.pdf') + glob.glob('**/*.pdf', recursive=True)
           for f in pdf_files:
               if '.github' in f: continue
+              print(f"--- Processing: {f} ---")
+              txts = []
+              
+              # 優先使用 pdfplumber 讀取
               try:
                   with pdfplumber.open(f) as pdf:
-                      txts = [p.extract_text() for p in pdf.pages if p.extract_text()]
-                  out = os.path.splitext(f)[0] + '.md'
-                  with open(out, 'w', encoding='utf-8') as fp:
-                      fp.write('\n\n---\n\n'.join(txts))
-                  print(f'Done: {f}')
+                      for i, page in enumerate(pdf.pages):
+                          t = page.extract_text()
+                          if t and t.strip():
+                              txts.append(t)
+                          else:
+                              print(f"Warning: Page {i+1} in {f} returned empty text with pdfplumber.")
               except Exception as e:
-                  print(f'Error {f}: {e}')
+                  print(f"pdfplumber error on {f}: {e}")
+
+              # 若 pdfplumber 抓不到文字，改用 pypdf 備用讀取
+              if not txts:
+                  print(f"Trying fallback solver (pypdf) for {f}...")
+                  try:
+                      reader = PdfReader(f)
+                      for i, page in enumerate(reader.pages):
+                          t = page.extract_text()
+                          if t and t.strip():
+                              txts.append(t)
+                  except Exception as e:
+                      print(f"pypdf error on {f}: {e}")
+
+              out = os.path.splitext(f)[0] + '.md'
+              with open(out, 'w', encoding='utf-8') as fp:
+                  fp.write('\n\n---\n\n'.join(txts))
+              print(f"Finished writing: {out} (Total pages with text: {len(txts)})")
           EOF
           python run_convert.py
 
